@@ -1,0 +1,23 @@
+<html>
+  <head>
+    <title>whiteboard</title>
+    <link rel="manifest" href="manifest.json">
+    <style>
+      body {
+        overflow-y: hidden; // disable android chrome pull-down-to-refresh feature.
+      }
+      canvas {
+        position: absolute;
+        top: 0px;
+        left: 0px;
+        cursor: default;
+      }
+    </style>
+    <meta name="viewport" content="user-scalable=no" /> <!-- disable pinch zoom and double tap zoom -->
+  </head>
+  <body bgcolor="black">
+    <canvas id="canvas"></canvas>
+  </body>
+  <script type="application/javascript" src="network.js"></script>
+  <script type="application/javascript" src="client.js"></script>
+</html>
