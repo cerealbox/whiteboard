@@ -45,6 +45,15 @@ wss.on('connection', (client) => {
         client.close()
         return        
     }
+
+    //@TODO: there is a bug, i somehow get this when trying to connect:
+    // [client connection: //::ffff:108.168.39.175:52994/ws]
+    // [client rejected with duplicate id: //::ffff:108.168.39.175:52994/ws 0.6824159005503057]
+    // [client disconnected: //::ffff:108.168.39.175:52994/ws]
+    // but no one is still connected.
+    // basicly, on('close', () => {}) does not fire.  wtf?!?!?
+
+
     // reject client if it is using the same id as another connected client:
     if (boards[client.id] && boards[client.id].client) {
         console.log(`[client rejected with duplicate id: ${client.ipport} ${client.id}]`)
@@ -65,13 +74,18 @@ wss.on('connection', (client) => {
         boards[client.id].client = null
     })
 
+    client.on('error', (e) => {
+        log("socket error", e, client.id)
+        boards[client.id].client = null
+    })    
+
     //@TODO: clients that never come back will cause unused canvas to sit in memory and stuff.
     //       clear out abandonded canvases every minute.
 
     // accept drawing commands:
     client.on('message', (data) => {
         data = JSON.parse(data)
-        //log(data)
+        //log(client.id, data)
         
         let board = boards[client.id]
         switch (data.type) {

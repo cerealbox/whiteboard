@@ -151,19 +151,23 @@ document.body.onload = {
         }
 
         // tablet:
+        let tablet = false
         document.addEventListener('touchstart', (e) => {
+            tablet = true
 
             if (this.select(e.touches[0].clientX, e.touches[0].clientY))
                 return;
 
-            //e.preventDefault()
             if (e.touches.length == 1) {
-                pendown(e.touches[0].clientX, e.touches[0].clientY)
+                //pendown(e.touches[0].clientX, e.touches[0].clientY)
+                pendown(Math.round(e.touches[0].clientX), Math.round(e.touches[0].clientY))
                 function move(e) {
-                    penmove(e.touches[0].clientX, e.touches[0].clientY)
+                    //penmove(e.touches[0].clientX, e.touches[0].clientY)
+                    penmove(Math.round(e.touches[0].clientX), Math.round(e.touches[0].clientY))
                 }
                 function end(e) {
-                    penup(e.changedTouches[0].clientX, e.changedTouches[0].clientY)
+                    //penup(e.changedTouches[0].clientX, e.changedTouches[0].clientY)
+                    penup(Math.round(e.changedTouches[0].clientX), Math.round(e.changedTouches[0].clientY))
                     document.removeEventListener('touchmove', move)
                     document.removeEventListener('touchend', end)
                     document.removeEventListener('touchcancel', end)
@@ -180,6 +184,8 @@ document.body.onload = {
 
         // desktop:
         document.addEventListener('mousedown', (e) => {
+            if (tablet)
+                return;
 
             if (this.select(e.clientX, e.clientY))
                 return;
@@ -433,7 +439,8 @@ document.body.onload = {
             this[data.type](data)
         })
         
-        socket.addEventListener('close', () => location.reload()) //@TODO: causes constant refresh if you open a second tab!!!!!
+        //socket.addEventListener('close', () => location.reload()) //@TODO: causes constant refresh if you open a second tab!!!!!
+        socket.addEventListener('close', () => document.getElementById("canvas").remove())
         this.socket = socket
     }
 }.load()
