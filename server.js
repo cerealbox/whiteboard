@@ -46,14 +46,6 @@ wss.on('connection', (client) => {
         return        
     }
 
-    //@TODO: there is a bug, i somehow get this when trying to connect:
-    // [client connection: //::ffff:108.168.39.175:52994/ws]
-    // [client rejected with duplicate id: //::ffff:108.168.39.175:52994/ws 0.6824159005503057]
-    // [client disconnected: //::ffff:108.168.39.175:52994/ws]
-    // but no one is still connected.
-    // basicly, on('close', () => {}) does not fire.  wtf?!?!?
-
-
     // reject client if it is using the same id as another connected client:
     if (boards[client.id] && boards[client.id].client) {
         console.log(`[client rejected with duplicate id: ${client.ipport} ${client.id}]`)
@@ -64,20 +56,16 @@ wss.on('connection', (client) => {
 
 
     // link client to existing canvas or create new one:
-    if (client.id in boards)
+    if (client.id in boards) {
         boards[client.id].client = client
-    else
-        boards[client.id] = {client, canvas: createCanvas(2560, 1600), undo: [], lastUpdate: (new Date()).getTime(), zindex: zindex++ }
+        boards[client.id].timeout = 0
+    } else
+        boards[client.id] = {client, canvas: createCanvas(2560, 1600), undo: [], lastUpdate: (new Date()).getTime(), zindex: zindex++, timeout: 0 }
 
     // unlink client from canvas on disconnection:
     client.on('close', () => {
         boards[client.id].client = null
     })
-
-    client.on('error', (e) => {
-        log("socket error", e, client.id)
-        boards[client.id].client = null
-    })    
 
     //@TODO: clients that never come back will cause unused canvas to sit in memory and stuff.
     //       clear out abandonded canvases every minute.
@@ -113,7 +101,9 @@ wss.on('connection', (client) => {
                 })
                 //@TODO: reusable function writeAll(data)
                 break
+            default:
         }
+        board.timeout = 0
     })
 
     // send inital boards:
@@ -126,8 +116,19 @@ wss.on('connection', (client) => {
     })
 })
 
+// increment timeouts every second and close lost connections:
+setInterval(() => {
+    for (let board of Object.values(boards)) {
+        if (board.client && board.timeout++ > 10) {
+            log(`[timeout client ${board.client.ipport} with id ${board.client.id}]`)
+            board.client.close()
+        }
+    }
+}, 1000)
+
 
 // backup boards to disc every 10 seconds:
+//const canvas = await loadImage('http://server.com/image.png')
 setInterval(() => {
 
     for (id in boards) {

@@ -433,14 +433,17 @@ document.body.onload = {
     },
     async load() {
         let socket = await connect()
-  
+          
         socket.addEventListener('message', ({data}) => {
             data = this.read(data)
             this[data.type](data)
         })
         
-        //socket.addEventListener('close', () => location.reload()) //@TODO: causes constant refresh if you open a second tab!!!!!
-        socket.addEventListener('close', () => document.getElementById("canvas").remove())
+        //@TODO: causes constant refresh if you open a second tab!!!!!
+        socket.addEventListener('close', () => {
+            setTimeout(() => location.reload(), 1000) // reconnect on disconnect.
+        })
         this.socket = socket
+        setInterval(() => this.write({type: "ping"}), 5000) // send keepalive ping every 5 seconds.
     }
 }.load()
