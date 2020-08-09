@@ -144,7 +144,7 @@ document.body.onload = {
             
             this.boards[this.id].undo.push(data)
             if (this.boards[this.id].undo.length > 10) {
-                this.draw(this.boards[this.id].ctx, this.boards[this.id].undo.shift())
+                draw(this.boards[this.id].ctx, this.boards[this.id].undo.shift())
             }
 
             this.write(data)
@@ -332,33 +332,6 @@ document.body.onload = {
         }
         return false
     },
-    draw(ctx, data) {
-
-        // draw data points on context:
-        if (data.pen) {
-            ctx.strokeStyle = data.colour
-            ctx.lineWidth = 2
-        } else {
-            ctx.strokeStyle = "rgb(0,0,0)"
-            ctx.fillStyle =   "rgb(0,0,0)"
-            ctx.lineWidth = 20
-        }
-
-        if (data.points.length == 1) {
-            ctx.strokeRect(data.points[0].x, data.points[0].y, 1, 1)
-            if (!data.pen)
-                ctx.fillRect(data.points[0].x - 10, data.points[0].y - 10, 20, 20)
-        } else {
-            ctx.beginPath()
-            ctx.moveTo(data.points[0].x, data.points[0].y)
-            for (let {x, y} of data.points.slice(1)) {
-                ctx.lineTo(x, y)
-                if (!data.pen)
-                    ctx.fillRect(x - 10, y - 10, 20, 20)                
-            }
-            ctx.stroke()
-        }
-    },    
     render() {
         let ctx = this.ctx
 
@@ -374,7 +347,7 @@ document.body.onload = {
                 //     ctx.drawImage(path.canvas, this.pos.x + x, this.pos.y + y, width, height, x, y, width, height)
                 // } else
                     data = {...data, points: data.points.map(({x, y}) => ({x: x - this.pos.x, y: y - this.pos.y}))} //transform.
-                    this.draw(ctx, data)
+                    draw(ctx, data)
             }
             //ctx.drawImage(invisCanvas, topleft.x, topleft.y, ctx.canvas.width, ctx.canvas.height, 0, 0, ctx.canvas.width, ctx.canvas.height)
         }
@@ -406,7 +379,7 @@ document.body.onload = {
             this.boards[data.id] = {image: null, undo: [], canvas, ctx }
         }
 
-        //this.draw(this.boards[data.id].ctx, data)
+        //draw(this.boards[data.id].ctx, data)
         //@TODO: should the data paths be converted into canvass or left as paths???
         let board = this.boards[data.id]
         board.undo.push(data)
@@ -414,7 +387,7 @@ document.body.onload = {
             //@TODO: this doesn't seem right, why would i transform incomming lines from other clinets?
             ////data = {...data, points: data.points.map(({x, y}) => ({x: x - this.pos.x, y: y - this.pos.y}))} //transform.
             //what was i thinking here?
-            this.draw(board.ctx, board.undo.shift())
+            draw(board.ctx, board.undo.shift())
         }
 
     },
