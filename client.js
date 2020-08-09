@@ -411,7 +411,9 @@ document.body.onload = {
         let board = this.boards[data.id]
         board.undo.push(data)
         if (board.undo.length > 10) {
-            data = {...data, points: data.points.map(({x, y}) => ({x: x - this.pos.x, y: y - this.pos.y}))} //transform.
+            //@TODO: this doesn't seem right, why would i transform incomming lines from other clinets?
+            ////data = {...data, points: data.points.map(({x, y}) => ({x: x - this.pos.x, y: y - this.pos.y}))} //transform.
+            //what was i thinking here?
             this.draw(board.ctx, board.undo.shift())
         }
 

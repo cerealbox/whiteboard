@@ -1,13 +1,11 @@
 var log = console.log.bind(console)
 
 const {createCanvas, loadImage} = require('canvas')
-const {sleep, serve} = require('./serve')
+const serve = require('./serve')
 const fs = require('fs')
 
-let wss = serve()
-
-let boards = {}
-
+// ================================================================================================
+//@NOTE: data should have members: colour, pen, and points[{x, y}].
 function draw(ctx, data) {
 
     // draw data points on context:
@@ -36,15 +34,11 @@ function draw(ctx, data) {
     }
 }
 
+// ================================================================================================
+let boards = {}
 let zindex = 0
-wss.on('connection', (client) => {
 
-    // reject client if it is missing an id:
-    if (!client.id) {
-        console.log(`[client rejected with no id: ${client.ipport}]`)
-        client.close()
-        return        
-    }
+serve().on('connection', (client) => {
 
     // reject client if it is using the same id as another connected client:
     if (boards[client.id] && boards[client.id].client) {
@@ -54,56 +48,37 @@ wss.on('connection', (client) => {
     }
     console.log(`[client accepted with id: ${client.ipport} ${client.id}]`)
 
-
     // link client to existing canvas or create new one:
     if (client.id in boards) {
         boards[client.id].client = client
-        boards[client.id].timeout = 0
-    } else
-        boards[client.id] = {client, canvas: createCanvas(2560, 1600), undo: [], lastUpdate: (new Date()).getTime(), zindex: zindex++, timeout: 0 }
+        boards[client.id].lastConnect = (new Date()).getTime()
+    } else {
+        boards[client.id] = {client, canvas: createCanvas(2560, 1600), undo: [], lastConnect: (new Date()).getTime(), zindex: zindex++ }
+    }
+
+    let board = boards[client.id]
 
     // unlink client from canvas on disconnection:
-    client.on('close', () => {
-        boards[client.id].client = null
-    })
-
-    //@TODO: clients that never come back will cause unused canvas to sit in memory and stuff.
-    //       clear out abandonded canvases every minute.
+    client.on('close', () => board.client = null)
 
     // accept drawing commands:
     client.on('message', (data) => {
-        data = JSON.parse(data)
+        data = client.read(data)
         //log(client.id, data)
         
-        let board = boards[client.id]
         switch (data.type) {
-            case "update":
 
+            case "update":
                 board.undo.push(data)
                 if (board.undo.length > 10)
                     draw(board.canvas.getContext('2d'), board.undo.shift())
-
-                // spit back out to all clients:
-                data.id = client.id
-                ;[...wss.clients].filter(c => c != client).forEach(c => {
-                    c.write(data)
-                })
                 break
             
             case "undo":
-
                 board.undo.pop()
-
-                // spit back out to all clients:
-                data.id = client.id
-                ;[...wss.clients].filter(c => c != client).forEach(c => {
-                    c.write(data)
-                })
-                //@TODO: reusable function writeAll(data)
                 break
-            default:
         }
-        board.timeout = 0
+        client.writeAll(data)
     })
 
     // send inital boards:
@@ -111,24 +86,11 @@ wss.on('connection', (client) => {
         type: "init",
         boards: Object.fromEntries(Object.entries(boards).map(([id, {canvas, undo}]) => {
             return [id, { image: canvas.toDataURL(), undo }]
-        })),
-        id: client.id
+        }))
     })
 })
 
-// increment timeouts every second and close lost connections:
-setInterval(() => {
-    for (let board of Object.values(boards)) {
-        if (board.client && board.timeout++ > 10) {
-            log(`[timeout client ${board.client.ipport} with id ${board.client.id}]`)
-            board.client.close()
-        }
-    }
-}, 1000)
-
-
 // backup boards to disc every 10 seconds:
-//const canvas = await loadImage('http://server.com/image.png')
 setInterval(() => {
 
     for (id in boards) {
@@ -138,3 +100,7 @@ setInterval(() => {
         //out.on('finish', () => log(`${id}.png file was updated.`))
     }
 }, 10000)
+
+//@TODO: clients that never return will cause unused canvas to sit in memory.  
+//       check .lastConnect and clear out abandonded canvases every minute?
+//@TODO: load canvas from disc on startup? const canvas = await loadImage('http://server.com/image.png')

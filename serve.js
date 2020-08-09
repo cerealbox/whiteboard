@@ -7,27 +7,6 @@ const cookie = require('cookie')
 const events = require('events')
 
 // ===============================================================================================================
-function sleep(ms) {
-    return new Promise((resolve, reject) => {
-        setTimeout(resolve, ms)
-    })
-}
-
-// accepts an async function and returns a regular function:
-function thread(af) {
-    return (...args) => {
-        af(...args).then((v) => {
-            if (v)
-                console.log(v)
-        }).catch((e) => {
-            console.log(e)
-            console.trace()
-            process.exit()
-        })
-    }
-}
-
-// ===============================================================================================================
 function serve(secure = false) {
 
     const app = express()
@@ -67,8 +46,10 @@ function serve(secure = false) {
         client.id = id
         client.upgradeReq = req
         client.ipport = ipport
+        client.timeout = 0
 
         client.write = (x) => {
+            x.id = client.id
             if (client.readyState == client.OPEN) {
                 try {
                     client.send(JSON.stringify(x))
@@ -77,6 +58,14 @@ function serve(secure = false) {
                 }
             }
         }
+
+        client.writeAll = (x) => {
+            ;[...wss.clients].filter(c => c != client).forEach(c => {
+                c.write(x)
+            })
+        }
+
+        client.read = (x) => JSON.parse(x)
 
         // client.addEventListener('message', (message) => {
         //     log(client.upgradeReq.url)
@@ -88,10 +77,30 @@ function serve(secure = false) {
             console.log(`[client disconnected: ${ipport}]`)
         })
 
+        // reject client if it is missing an id:
+        if (!client.id) {
+            console.log(`[client rejected with no id: ${client.ipport}]`)
+            client.close()
+            return        
+        }
+
+        client.on('message', (data) => {
+            client.timeout = 0
+        })
+
         //console.log(`[client accepted: ${ipport}]`)
         em.emit('connection', client)
     })
 
+    // increment timeouts every second and close lost connections:
+    setInterval(() => {
+        for (let client of wss.clients) {
+            if (client.timeout++ > 10) {
+                log(`[timeout client ${client.ipport} with id ${client.id}]`)
+                client.close()
+            }
+        }
+    }, 1000)
 
     const PORT = secure ? 443 : 80
     server.listen(PORT, () => { 
@@ -101,4 +110,4 @@ function serve(secure = false) {
     return em
 }
 
-module.exports = {sleep, thread, serve}
+module.exports = serve
