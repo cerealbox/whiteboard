@@ -48,6 +48,9 @@ serve().on('connection', (client) => {
             case "undo":
                 board.undo.pop()
                 break
+
+            case "ping":
+                return
         }
         client.writeAll(data)
     })
