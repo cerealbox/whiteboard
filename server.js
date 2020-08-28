@@ -9,7 +9,7 @@ const draw = require('./draw')
 let boards = {}
 let zindex = 0
 
-serve().on('connection', (client) => {
+serve().on('connection', async (client) => {
 
     // reject client if it is using the same id as another connected client:
     if (boards[client.id] && boards[client.id].client) {
@@ -48,6 +48,9 @@ serve().on('connection', (client) => {
             case "undo":
                 board.undo.pop()
                 break
+
+            case "ping":
+                return
         }
         client.writeAll(data)
     })
@@ -56,6 +59,12 @@ serve().on('connection', (client) => {
     client.write({
         type: "init",
         boards: Object.fromEntries(Object.entries(boards).map(([id, {canvas, undo}]) => {
+            //@TODO: canvas.toDataURL() is an expensive (250ms) operation:
+            // it can't be regularly parallelized using async/await because an inturruption by
+            // client.on('message', (m) => _could_ alter "boards" while it is being read here.
+            // if somehow possible though, all boards could be .toDataURL() in parallel, though.  but how?
+            // right now what this means is a, like, 0.5-1 second delay on every new client connection.
+            // at best it could be 250ms if we can do them all in parallel somehow...
             return [id, { image: canvas.toDataURL(), undo }]
         }))
     })
@@ -72,6 +81,20 @@ setInterval(() => {
     }
 }, 10000)
 
+
+
 //@TODO: clients that never return will cause unused canvas to sit in memory.  
 //       check .lastConnect and clear out abandonded canvases every minute?
 //@TODO: load canvas from disc on startup? const canvas = await loadImage('http://server.com/image.png')
+
+//fs.writeFileSync(`${id}.txt`, canvas.toDataURL())
+
+    // function canvasToDataURL(canvas) {
+    //     return new Promise((resolve, reject) => {
+    //         canvas.toDataURL((err, png) => {
+    //             if (err)
+    //                 reject(err)
+    //             resolve(png)
+    //         })
+    //     })
+    // }

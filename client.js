@@ -39,7 +39,8 @@ document.body.onload = {
     boards: {},
     id: null,
     ctx: null,
-
+    decoder: new TextDecoder('utf-8'), // ArrayBuffer -> string.
+    encoder: new TextEncoder(), // string -> ArrayBuffer.
     init(data) {
         this.boards = data.boards
         this.id = data.id
@@ -404,11 +405,20 @@ document.body.onload = {
         this.socket.write(JSON.stringify(data))
     },
     read(data) {
-        return JSON.parse(data)
+        if (typeof data == "string") {
+            return JSON.parse(data)
+        } else {
+            let [magicA, magicB] = (new Uint8Array(data)).slice(0, 2)
+            if (magicA == 31 && magicB == 139)
+                return JSON.parse(this.decoder.decode(pako.ungzip(data)))
+            else
+                throw  `unknown binary format: [${magicA} ${magicB}]!`
+        }
     },
     async load() {
         let socket = await connect()
           
+        socket.binaryType = 'arraybuffer';
         socket.addEventListener('message', ({data}) => {
             data = this.read(data)
             this[data.type](data)

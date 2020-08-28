@@ -5,6 +5,8 @@ const WebSocketServer = require('ws').Server
 const express = require('express')
 const cookie = require('cookie')
 const events = require('events')
+const gzipStatic = require('connect-gzip-static')
+const zlib = require('zlib')
 
 // ===============================================================================================================
 function serve(secure = false) {
@@ -30,11 +32,14 @@ function serve(secure = false) {
     //  res.send('Hello.')
     // })
 
-    app.use(express.static('.'))
+    //app.use(express.static('.'))
+    // allow pre-compressed (.gz) files to be served as well as regular uncompressed files.
+    app.use(gzipStatic('.'))
     
-    // app.use((req, res) => {
-    //     res.redirect('/')
-    // })
+    // redirect any 404 not found to index.html instead:
+    app.use((req, res) => {
+        res.redirect('/')
+    })
 
     wss.on('connection', (client, req) => {
         
@@ -50,28 +55,32 @@ function serve(secure = false) {
 
         client.write = (x) => {
             x.id = client.id
+            let xs = JSON.stringify(x)
+            
             if (client.readyState == client.OPEN) {
                 try {
-                    client.send(JSON.stringify(x))
+                    //client.send(xs.length > 1500 ? zlib.gzipSync(xs) : xs)
+                    if (xs.length > 1500) {
+                        let zxs = zlib.gzipSync(xs)
+                        log("u:", xs.length, "c:", zxs.length)
+                        client.send(zxs)
+                    } else {
+                        client.send(xs)
+                    }
                 } catch(e) {
                     client.close()
                 }
-            }
+            }                
         }
 
         client.writeAll = (x) => {
-            ;[...wss.clients].filter(c => c != client).forEach(c => {
-                c.write(x)
-            })
+            for (let c of wss.clients) {
+                if (c != client)
+                    c.write(x)
+            }
         }
 
         client.read = (x) => JSON.parse(x)
-
-        // client.addEventListener('message', (message) => {
-        //     log(client.upgradeReq.url)
-        //     log(client.upgradeReq.headers)
-        //     log(message.data)
-        // })
 
         client.addEventListener('close', () => {
             console.log(`[client disconnected: ${ipport}]`)
