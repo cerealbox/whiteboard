@@ -39,6 +39,8 @@ document.body.onload = {
     boards: {},
     id: null,
     ctx: null,
+    scratchCanvas: null,
+    scratchCtx: null,
 
     init(data) {
         this.boards = data.boards
@@ -90,6 +92,7 @@ document.body.onload = {
         //@TODO: HERE, write new lines to an undo context:
         //let ctx = this.boards[this.id].undo[this.boards[this.id].undo.length - 1].ctx
         let ctx = this.scratchCtx
+        let canvas = document.getElementById("canvas")
 
         // 
         // let canvas = document.createElement('canvas')
@@ -140,7 +143,7 @@ document.body.onload = {
 
             let data = { type: "update", pen: this.settings.pen, points, colour: this.settings.colour }
             data = {...data, points: data.points.map(({x, y}) => ({x: x + this.pos.x, y: y + this.pos.y}))} //transform.
-            this.scratchCtx.clearRect(0, 0, this.scratchCanvas.width, this.scratchCanvas.height)
+            ctx.clearRect(0, 0, this.scratchCanvas.width, this.scratchCanvas.height)
             
             this.boards[this.id].undo.push(data)
             if (this.boards[this.id].undo.length > 10) {
@@ -152,7 +155,8 @@ document.body.onload = {
 
         // tablet:
         let tablet = false
-        document.addEventListener('touchstart', (e) => {
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault()
             tablet = true
 
             if (this.select(e.touches[0].clientX, e.touches[0].clientY))
@@ -162,19 +166,21 @@ document.body.onload = {
                 //pendown(e.touches[0].clientX, e.touches[0].clientY)
                 pendown(Math.round(e.touches[0].clientX), Math.round(e.touches[0].clientY))
                 function move(e) {
+                    e.preventDefault()
                     //penmove(e.touches[0].clientX, e.touches[0].clientY)
                     penmove(Math.round(e.touches[0].clientX), Math.round(e.touches[0].clientY))
                 }
                 function end(e) {
+                    e.preventDefault()
                     //penup(e.changedTouches[0].clientX, e.changedTouches[0].clientY)
                     penup(Math.round(e.changedTouches[0].clientX), Math.round(e.changedTouches[0].clientY))
-                    document.removeEventListener('touchmove', move)
-                    document.removeEventListener('touchend', end)
-                    document.removeEventListener('touchcancel', end)
+                    canvas.removeEventListener('touchmove', move)
+                    canvas.removeEventListener('touchend', end)
+                    canvas.removeEventListener('touchcancel', end)
                 }
-                document.addEventListener('touchmove', move)
-                document.addEventListener('touchend', end)
-                document.addEventListener('touchcancel', end)
+                canvas.addEventListener('touchmove', move)
+                canvas.addEventListener('touchend', end)
+                canvas.addEventListener('touchcancel', end)
             } else {
                 log("double touch!")
                 //@TODO: undo any line drawn with the first finger?
@@ -183,7 +189,7 @@ document.body.onload = {
         })
 
         // desktop:
-        document.addEventListener('mousedown', (e) => {
+        canvas.addEventListener('mousedown', (e) => {
             if (tablet)
                 return;
 
@@ -196,11 +202,11 @@ document.body.onload = {
             }
             function end(e) {
                 penup(e.clientX, e.clientY)
-                document.removeEventListener('mousemove', move)
-                document.removeEventListener('mouseup', end)
+                canvas.removeEventListener('mousemove', move)
+                canvas.removeEventListener('mouseup', end)
             }
-            document.addEventListener('mousemove', move)
-            document.addEventListener('mouseup', end)
+            canvas.addEventListener('mousemove', move)
+            canvas.addEventListener('mouseup', end)
         })
 
         // prevent right click on canvas:
